@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: medassistai-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: medassist
+      POSTGRES_PASSWORD: medassist
+      POSTGRES_DB: medassistai
+    ports:
+      - "5432:5432"
+    volumes:
+      - medassistai_pgdata:/var/lib/postgresql/data
+
+volumes:
+  medassistai_pgdata:

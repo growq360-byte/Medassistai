@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum Urgency {
+  LOW
+  MODERATE
+  HIGH
+  EMERGENCY
+}
+
+model User {
+  id             String             @id @default(cuid())
+  email          String             @unique
+  passwordHash   String
+  name           String
+  role           Role               @default(USER)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  patientProfile PatientProfile?
+  conversations  ChatConversation[]
+  assessments    SymptomAssessment[]
+  appointments   Appointment[]
+}
+
+model PatientProfile {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  dateOfBirth       DateTime?
+  sex               String?
+  bloodType         String?
+  heightCm          Int?
+  weightKg          Int?
+  allergies         String[]  @default([])
+  medications       String[]  @default([])
+  conditions        String[]  @default([])
+  emergencyContact  String?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model ChatConversation {
+  id         String        @id @default(cuid())
+  userId     String
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String        @default("New conversation")
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  messages   ChatMessage[]
+
+  @@index([userId])
+}
+
+model ChatMessage {
+  id              String           @id @default(cuid())
+  conversationId  String
+  conversation    ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role            MessageRole
+  content         String
+  createdAt       DateTime         @default(now())
+
+  @@index([conversationId])
+}
+
+model SymptomAssessment {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symptoms      String[]
+  severity      String
+  duration      String
+  notes         String?
+  aiAssessment  String
+  urgency       Urgency   @default(LOW)
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Provider {
+  id           String        @id @default(cuid())
+  name         String
+  specialty    String
+  bio          String
+  email        String        @unique
+  phone        String?
+  avatarUrl    String?
+  createdAt    DateTime      @default(now())
+  appointments Appointment[]
+}
+
+model Appointment {
+  id           String            @id @default(cuid())
+  userId       String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  providerId   String
+  provider     Provider          @relation(fields: [providerId], references: [id])
+  scheduledAt  DateTime
+  reason       String
+  status       AppointmentStatus @default(PENDING)
+  notes        String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([providerId])
+}
