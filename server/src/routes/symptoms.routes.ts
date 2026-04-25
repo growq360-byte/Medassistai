@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validateBody } from "../middleware/validate.js";
 import { assessSymptoms } from "../services/claudeService.js";
+import { toJson, fromJson } from "../lib/arrays.js";
 
 const router = Router();
 
@@ -22,19 +23,18 @@ router.post("/assess", validateBody(assessSchema), async (req, res, next) => {
     const profile = await prisma.patientProfile.findUnique({
       where: { userId: req.user!.id },
     });
+    const allergies = fromJson(profile?.allergies);
+    const medications = fromJson(profile?.medications);
+    const conditions = fromJson(profile?.conditions);
     const patientContext = profile
       ? [
           profile.sex ? `Sex: ${profile.sex}` : null,
           profile.dateOfBirth
             ? `DOB: ${profile.dateOfBirth.toISOString().slice(0, 10)}`
             : null,
-          profile.allergies.length ? `Allergies: ${profile.allergies.join(", ")}` : null,
-          profile.medications.length
-            ? `Medications: ${profile.medications.join(", ")}`
-            : null,
-          profile.conditions.length
-            ? `Conditions: ${profile.conditions.join(", ")}`
-            : null,
+          allergies.length ? `Allergies: ${allergies.join(", ")}` : null,
+          medications.length ? `Medications: ${medications.join(", ")}` : null,
+          conditions.length ? `Conditions: ${conditions.join(", ")}` : null,
         ]
           .filter(Boolean)
           .join("; ")
@@ -45,7 +45,7 @@ router.post("/assess", validateBody(assessSchema), async (req, res, next) => {
     const saved = await prisma.symptomAssessment.create({
       data: {
         userId: req.user!.id,
-        symptoms: body.symptoms,
+        symptoms: toJson(body.symptoms),
         severity: body.severity,
         duration: body.duration,
         notes: body.notes,
@@ -54,7 +54,9 @@ router.post("/assess", validateBody(assessSchema), async (req, res, next) => {
       },
     });
 
-    res.status(201).json({ assessment: saved });
+    res.status(201).json({
+      assessment: { ...saved, symptoms: fromJson(saved.symptoms) },
+    });
   } catch (err) {
     next(err);
   }
@@ -67,7 +69,9 @@ router.get("/history", async (req, res, next) => {
       orderBy: { createdAt: "desc" },
       take: 50,
     });
-    res.json({ history: items });
+    res.json({
+      history: items.map((i) => ({ ...i, symptoms: fromJson(i.symptoms) })),
+    });
   } catch (err) {
     next(err);
   }

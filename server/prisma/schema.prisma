@@ -3,33 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-}
-
-enum Role {
-  USER
-  ADMIN
-}
-
-enum MessageRole {
-  USER
-  ASSISTANT
-  SYSTEM
-}
-
-enum AppointmentStatus {
-  PENDING
-  CONFIRMED
-  CANCELLED
-  COMPLETED
-}
-
-enum Urgency {
-  LOW
-  MODERATE
-  HIGH
-  EMERGENCY
 }
 
 model User {
@@ -37,7 +12,7 @@ model User {
   email          String             @unique
   passwordHash   String
   name           String
-  role           Role               @default(USER)
+  role           String             @default("USER")
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 
@@ -57,9 +32,9 @@ model PatientProfile {
   bloodType         String?
   heightCm          Int?
   weightKg          Int?
-  allergies         String[]  @default([])
-  medications       String[]  @default([])
-  conditions        String[]  @default([])
+  allergies         String    @default("[]")
+  medications       String    @default("[]")
+  conditions        String    @default("[]")
   emergencyContact  String?
 
   createdAt         DateTime  @default(now())
@@ -82,7 +57,7 @@ model ChatMessage {
   id              String           @id @default(cuid())
   conversationId  String
   conversation    ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  role            MessageRole
+  role            String
   content         String
   createdAt       DateTime         @default(now())
 
@@ -93,12 +68,12 @@ model SymptomAssessment {
   id            String    @id @default(cuid())
   userId        String
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  symptoms      String[]
+  symptoms      String    @default("[]")
   severity      String
   duration      String
   notes         String?
   aiAssessment  String
-  urgency       Urgency   @default(LOW)
+  urgency       String    @default("LOW")
   createdAt     DateTime  @default(now())
 
   @@index([userId])
@@ -117,17 +92,17 @@ model Provider {
 }
 
 model Appointment {
-  id           String            @id @default(cuid())
+  id           String   @id @default(cuid())
   userId       String
-  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   providerId   String
-  provider     Provider          @relation(fields: [providerId], references: [id])
+  provider     Provider @relation(fields: [providerId], references: [id])
   scheduledAt  DateTime
   reason       String
-  status       AppointmentStatus @default(PENDING)
+  status       String   @default("PENDING")
   notes        String?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([userId])
   @@index([providerId])

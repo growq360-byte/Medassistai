@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validateBody } from "../middleware/validate.js";
 import { HttpError } from "../middleware/error.js";
+import { toJson, fromJson } from "../lib/arrays.js";
 
 const router = Router();
 
@@ -19,13 +20,27 @@ const updateSchema = z.object({
   emergencyContact: z.string().nullable().optional(),
 });
 
+function profileToApi(p: {
+  allergies: string;
+  medications: string;
+  conditions: string;
+  [key: string]: unknown;
+}) {
+  return {
+    ...p,
+    allergies: fromJson(p.allergies),
+    medications: fromJson(p.medications),
+    conditions: fromJson(p.conditions),
+  };
+}
+
 router.get("/me", requireAuth, async (req, res, next) => {
   try {
     const profile = await prisma.patientProfile.findUnique({
       where: { userId: req.user!.id },
     });
     if (!profile) throw new HttpError(404, "Profile not found");
-    res.json({ profile });
+    res.json({ profile: profileToApi(profile) });
   } catch (err) {
     next(err);
   }
@@ -34,19 +49,27 @@ router.get("/me", requireAuth, async (req, res, next) => {
 router.put("/me", requireAuth, validateBody(updateSchema), async (req, res, next) => {
   try {
     const body = req.body as z.infer<typeof updateSchema>;
+    const data = {
+      dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : body.dateOfBirth,
+      sex: body.sex,
+      bloodType: body.bloodType,
+      heightCm: body.heightCm,
+      weightKg: body.weightKg,
+      allergies: body.allergies ? toJson(body.allergies) : undefined,
+      medications: body.medications ? toJson(body.medications) : undefined,
+      conditions: body.conditions ? toJson(body.conditions) : undefined,
+      emergencyContact: body.emergencyContact,
+    };
     const profile = await prisma.patientProfile.upsert({
       where: { userId: req.user!.id },
-      update: {
-        ...body,
-        dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : body.dateOfBirth,
-      },
+      update: data,
       create: {
         userId: req.user!.id,
-        ...body,
+        ...data,
         dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : undefined,
       },
     });
-    res.json({ profile });
+    res.json({ profile: profileToApi(profile) });
   } catch (err) {
     next(err);
   }
