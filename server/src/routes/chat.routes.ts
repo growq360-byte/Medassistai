@@ -97,10 +97,10 @@ router.post("/conversations/:id/messages", async (req, res, next) => {
       },
     });
 
-    // Build history for Claude.
+    // Build history for Claude — filter out empty messages (from failed streams).
     const history: ChatTurn[] = [
       ...conversation.messages
-        .filter((m) => m.role !== "SYSTEM")
+        .filter((m) => m.role !== "SYSTEM" && m.content.trim() !== "")
         .map((m) => ({
           role: m.role === "USER" ? ("user" as const) : ("assistant" as const),
           content: m.content,
@@ -120,13 +120,15 @@ router.post("/conversations/:id/messages", async (req, res, next) => {
         assistantText += delta;
         res.write(`data: ${JSON.stringify({ type: "delta", text: delta })}\n\n`);
       }
-      await prisma.chatMessage.create({
-        data: {
-          conversationId: conversation.id,
-          role: "ASSISTANT",
-          content: assistantText,
-        },
-      });
+      if (assistantText.trim()) {
+        await prisma.chatMessage.create({
+          data: {
+            conversationId: conversation.id,
+            role: "ASSISTANT",
+            content: assistantText,
+          },
+        });
+      }
       // Update conversation title on first reply if still default.
       if (
         conversation.title === "New conversation" &&
