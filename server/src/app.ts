@@ -8,6 +8,7 @@ import chatRoutes from "./routes/chat.routes.js";
 import symptomsRoutes from "./routes/symptoms.routes.js";
 import providersRoutes from "./routes/providers.routes.js";
 import appointmentsRoutes from "./routes/appointments.routes.js";
+import dashboardRoutes from "./routes/dashboard.routes.js";
 
 export function createApp() {
   const app = express();
@@ -30,6 +31,7 @@ export function createApp() {
   app.use("/api/symptoms", symptomsRoutes);
   app.use("/api/providers", providersRoutes);
   app.use("/api/appointments", appointmentsRoutes);
+  app.use("/api/dashboard", dashboardRoutes);
 
   app.use(errorHandler);
   return app;

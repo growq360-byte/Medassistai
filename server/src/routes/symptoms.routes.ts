@@ -70,7 +70,7 @@ router.get("/history", async (req, res, next) => {
       take: 50,
     });
     res.json({
-      history: items.map((i) => ({ ...i, symptoms: fromJson(i.symptoms) })),
+      history: items.map((i: { symptoms: string; [k: string]: unknown }) => ({ ...i, symptoms: fromJson(i.symptoms) })),
     });
   } catch (err) {
     next(err);

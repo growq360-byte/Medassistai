@@ -100,8 +100,8 @@ router.post("/conversations/:id/messages", async (req, res, next) => {
     // Build history for Claude — filter out empty messages (from failed streams).
     const history: ChatTurn[] = [
       ...conversation.messages
-        .filter((m) => m.role !== "SYSTEM" && m.content.trim() !== "")
-        .map((m) => ({
+        .filter((m: { role: string; content: string }) => m.role !== "SYSTEM" && m.content.trim() !== "")
+        .map((m: { role: string; content: string }) => ({
           role: m.role === "USER" ? ("user" as const) : ("assistant" as const),
           content: m.content,
         })),
