@@ -1,10 +1,11 @@
-import { FormEvent, useEffect, useState } from "react";
-import { AlertOctagon, Loader2 } from "lucide-react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import { AlertOctagon, Loader2, Mic, MicOff } from "lucide-react";
 import clsx from "clsx";
 import PageHeader from "../components/PageHeader";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import { api, ApiError } from "../lib/api";
 import type { SymptomAssessment, Urgency } from "../types";
+import { useSpeechToText } from "../hooks/useSpeechToText";
 
 const URGENCY_STYLES: Record<Urgency, string> = {
   LOW: "bg-emerald-100 text-emerald-800 border-emerald-200",
@@ -21,6 +22,9 @@ export default function SymptomsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<SymptomAssessment[]>([]);
+  const voice = useSpeechToText(
+    useCallback((text: string) => setSymptoms((prev) => (prev ? prev + ", " + text : text)), []),
+  );
 
   const loadHistory = async () => {
     const data = await api.get<{ history: SymptomAssessment[] }>(
@@ -72,14 +76,39 @@ export default function SymptomsPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <form onSubmit={handleSubmit} className="card space-y-4">
           <div>
-            <label className="label">Symptoms (comma-separated)</label>
-            <input
-              className="input"
-              value={symptoms}
-              onChange={(e) => setSymptoms(e.target.value)}
-              placeholder="e.g. headache, fatigue, mild fever"
-              required
-            />
+            <label className="label">Symptoms (comma-separated or use voice)</label>
+            <div className="flex gap-2">
+              <input
+                className="input flex-1"
+                value={symptoms}
+                onChange={(e) => setSymptoms(e.target.value)}
+                placeholder="e.g. headache, fatigue, mild fever"
+                required
+              />
+              {voice.supported && (
+                <button
+                  type="button"
+                  onClick={voice.toggle}
+                  className={clsx(
+                    "btn shrink-0 rounded-lg p-2",
+                    voice.listening
+                      ? "bg-red-100 text-red-600 hover:bg-red-200"
+                      : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-100",
+                  )}
+                  title={voice.listening ? "Stop recording" : "Speak your symptoms"}
+                >
+                  {voice.listening ? <MicOff size={18} /> : <Mic size={18} />}
+                </button>
+              )}
+            </div>
+            {voice.listening && (
+              <p className="mt-1 text-xs text-red-600 animate-pulse">
+                Listening… describe your symptoms out loud.
+              </p>
+            )}
+            {voice.error && (
+              <p className="mt-1 text-xs text-red-600">{voice.error}</p>
+            )}
           </div>
           <div>
             <label className="label">Severity</label>

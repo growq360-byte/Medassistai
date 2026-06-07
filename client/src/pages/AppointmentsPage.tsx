@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { CalendarX, Clock, Stethoscope } from "lucide-react";
+import { FormEvent, useEffect, useState } from "react";
+import { CalendarClock, CalendarX, Clock, Stethoscope } from "lucide-react";
 import clsx from "clsx";
 import PageHeader from "../components/PageHeader";
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 import type { Appointment, AppointmentStatus } from "../types";
 
 const STATUS_STYLES: Record<AppointmentStatus, string> = {
@@ -15,10 +15,17 @@ const STATUS_STYLES: Record<AppointmentStatus, string> = {
 export default function AppointmentsPage() {
   const [items, setItems] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [rescheduleId, setRescheduleId] = useState<string | null>(null);
 
   const load = async () => {
-    const data = await api.get<{ appointments: Appointment[] }>("/appointments");
-    setItems(data.appointments);
+    try {
+      const data = await api.get<{ appointments: Appointment[] }>("/appointments");
+      setItems(data.appointments);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to load appointments");
+    }
   };
 
   useEffect(() => {
@@ -43,6 +50,11 @@ export default function AppointmentsPage() {
         title="Appointments"
         description="Your upcoming and past visits."
       />
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </div>
+      )}
       {loading ? (
         <div className="text-slate-500">Loading…</div>
       ) : items.length === 0 ? (
@@ -82,18 +94,108 @@ export default function AppointmentsPage() {
                   <div className="mt-1 text-xs text-slate-500">{a.notes}</div>
                 )}
                 {a.status !== "CANCELLED" && a.status !== "COMPLETED" && (
-                  <button
-                    onClick={() => cancel(a.id)}
-                    className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline"
-                  >
-                    <CalendarX size={14} /> Cancel
-                  </button>
+                  <div className="mt-3 flex items-center gap-3">
+                    <button
+                      onClick={() => setRescheduleId(a.id)}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 hover:underline"
+                    >
+                      <CalendarClock size={14} /> Reschedule
+                    </button>
+                    <button
+                      onClick={() => cancel(a.id)}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline"
+                    >
+                      <CalendarX size={14} /> Cancel
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {rescheduleId && (
+        <RescheduleModal
+          appointmentId={rescheduleId}
+          onClose={() => setRescheduleId(null)}
+          onDone={async () => {
+            setRescheduleId(null);
+            await load();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function RescheduleModal({
+  appointmentId,
+  onClose,
+  onDone,
+}: {
+  appointmentId: string;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      await api.patch(`/appointments/${appointmentId}`, {
+        scheduledAt: new Date(scheduledAt).toISOString(),
+      });
+      onDone();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Reschedule failed");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-20 flex items-center justify-center bg-slate-900/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="mb-4 text-lg font-semibold text-slate-900">
+          Reschedule appointment
+        </h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="label">New date & time</label>
+            <input
+              type="datetime-local"
+              className="input"
+              value={scheduledAt}
+              onChange={(e) => setScheduledAt(e.target.value)}
+              required
+            />
+          </div>
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={onClose} className="btn-secondary">
+              Cancel
+            </button>
+            <button className="btn-primary" disabled={submitting}>
+              {submitting ? "Saving…" : "Confirm"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

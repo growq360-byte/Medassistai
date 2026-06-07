@@ -1,10 +1,11 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Plus, Send, Trash2 } from "lucide-react";
+import { Mic, MicOff, Plus, Send, Trash2 } from "lucide-react";
 import clsx from "clsx";
 import { api, streamChat } from "../lib/api";
 import type { ChatMessage, Conversation, ConversationSummary } from "../types";
 import DisclaimerBanner from "../components/DisclaimerBanner";
+import { useSpeechToText } from "../hooks/useSpeechToText";
 
 export default function ChatPage() {
   const { id } = useParams<{ id?: string }>();
@@ -15,6 +16,9 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const voice = useSpeechToText(
+    useCallback((text: string) => setInput((prev) => (prev ? prev + " " + text : text)), []),
+  );
 
   const loadConversations = useCallback(async () => {
     const data = await api.get<{ conversations: ConversationSummary[] }>(
@@ -223,11 +227,36 @@ export default function ChatPage() {
                   }
                 }}
               />
+              {voice.supported && (
+                <button
+                  type="button"
+                  onClick={voice.toggle}
+                  className={clsx(
+                    "btn rounded-lg p-2",
+                    voice.listening
+                      ? "bg-red-100 text-red-600 hover:bg-red-200"
+                      : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-100",
+                  )}
+                  title={voice.listening ? "Stop recording" : "Voice input"}
+                >
+                  {voice.listening ? <MicOff size={18} /> : <Mic size={18} />}
+                </button>
+              )}
               <button className="btn-primary" disabled={sending || !input.trim()}>
                 <Send size={16} />
                 {sending ? "Sending…" : "Send"}
               </button>
             </div>
+            {voice.listening && (
+              <div className="mx-auto mt-2 max-w-3xl text-center text-xs text-red-600 animate-pulse">
+                Listening… speak now. Click the mic button to stop.
+              </div>
+            )}
+            {voice.error && (
+              <div className="mx-auto mt-2 max-w-3xl text-center text-xs text-red-600">
+                {voice.error}
+              </div>
+            )}
           </form>
         )}
       </section>
