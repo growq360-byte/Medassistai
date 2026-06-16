@@ -33,4 +33,9 @@
   .card {
     @apply rounded-xl border border-slate-200 bg-white p-5 shadow-sm;
   }
+  .prose ul { list-style-type: disc; padding-left: 1.25em; }
+  .prose ol { list-style-type: decimal; padding-left: 1.25em; }
+  .prose strong { font-weight: 600; }
+  .prose code { background: #f1f5f9; padding: 0.1em 0.3em; border-radius: 0.25em; font-size: 0.85em; }
+  .prose blockquote { border-left: 3px solid #cbd5e1; padding-left: 0.75em; color: #475569; }
 }

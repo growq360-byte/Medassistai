@@ -3,8 +3,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Mic, MicOff, Plus, Send, Trash2 } from "lucide-react";
 import clsx from "clsx";
 import { api, streamChat } from "../lib/api";
-import type { ChatMessage, Conversation, ConversationSummary } from "../types";
+import type { ChatMessage as ChatMessageType, Conversation, ConversationSummary } from "../types";
 import DisclaimerBanner from "../components/DisclaimerBanner";
+import ChatMessage from "../components/ChatMessage";
 import { useSpeechToText } from "../hooks/useSpeechToText";
 
 export default function ChatPage() {
@@ -82,14 +83,14 @@ export default function ChatPage() {
     setSending(true);
 
     // Optimistically append user + empty assistant messages.
-    const userMsg: ChatMessage = {
+    const userMsg: ChatMessageType = {
       id: `tmp-u-${Date.now()}`,
       conversationId: id,
       role: "USER",
       content,
       createdAt: new Date().toISOString(),
     };
-    const assistantMsg: ChatMessage = {
+    const assistantMsg: ChatMessageType = {
       id: `tmp-a-${Date.now()}`,
       conversationId: id,
       role: "ASSISTANT",
@@ -180,25 +181,18 @@ export default function ChatPage() {
                 Start a new conversation from the left to begin.
               </div>
             )}
-            {active?.messages.map((m) => (
-              <div
+            {active?.messages.map((m, i) => (
+              <ChatMessage
                 key={m.id}
-                className={clsx(
-                  "flex",
-                  m.role === "USER" ? "justify-end" : "justify-start",
-                )}
-              >
-                <div
-                  className={clsx(
-                    "max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm shadow-sm",
-                    m.role === "USER"
-                      ? "bg-brand-600 text-white"
-                      : "bg-white text-slate-900",
-                  )}
-                >
-                  {m.content || (sending ? "…" : "")}
-                </div>
-              </div>
+                role={m.role as "USER" | "ASSISTANT"}
+                content={m.content}
+                createdAt={m.id.startsWith("tmp-") ? undefined : m.createdAt}
+                streaming={
+                  sending &&
+                  i === active.messages.length - 1 &&
+                  m.role === "ASSISTANT"
+                }
+              />
             ))}
             {error && (
               <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

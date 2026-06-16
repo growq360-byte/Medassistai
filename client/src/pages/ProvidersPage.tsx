@@ -1,5 +1,5 @@
-import { FormEvent, useEffect, useState } from "react";
-import { Mail, Phone, UserRound } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Mail, Phone, Search, UserRound } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import { api, ApiError } from "../lib/api";
 import type { Provider } from "../types";
@@ -8,6 +8,8 @@ export default function ProvidersPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState<Provider | null>(null);
+  const [search, setSearch] = useState("");
+  const [specialty, setSpecialty] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -20,17 +22,67 @@ export default function ProvidersPage() {
     })();
   }, []);
 
+  const specialties = useMemo(
+    () => [...new Set(providers.map((p) => p.specialty))].sort(),
+    [providers],
+  );
+
+  const filtered = useMemo(() => {
+    let list = providers;
+    if (specialty) list = list.filter((p) => p.specialty === specialty);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.specialty.toLowerCase().includes(q) ||
+          p.bio.toLowerCase().includes(q),
+      );
+    }
+    return list;
+  }, [providers, specialty, search]);
+
   return (
     <div className="p-8">
       <PageHeader
         title="Providers"
         description="Browse our clinicians and book an appointment."
       />
+
+      {/* Search & filter */}
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            className="input pl-9"
+            placeholder="Search by name, specialty, or keyword…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <select
+          className="input w-full sm:w-48"
+          value={specialty}
+          onChange={(e) => setSpecialty(e.target.value)}
+        >
+          <option value="">All specialties</option>
+          {specialties.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {loading ? (
         <div className="text-slate-500">Loading…</div>
+      ) : filtered.length === 0 ? (
+        <div className="card text-sm text-slate-500">
+          No providers match your search. Try a different filter.
+        </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {providers.map((p) => (
+          {filtered.map((p) => (
             <div key={p.id} className="card flex flex-col">
               <div className="mb-3 flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-50 text-brand-600">
